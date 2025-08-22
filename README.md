@@ -1,4 +1,4 @@
-**Automation Suite for cmd line tools **
+*Automation Suite for cmd line tools *
 
 gitquick - add, commit and push all in one go (usage in file itself)
 
