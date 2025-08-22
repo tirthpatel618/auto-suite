@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# yt2mp3 — Download a YouTube link as MP3
+# Adds:
+#   --to [kirtans|desktop]   Choose one of two preset destinations
+#   --name "Custom Name"     Save as a specific filename (auto-appends .mp3)
+
+set -euo pipefail
+
+FOLDER1_DIR="replace me"     
+DESKTOP_DIR="replace me"  
+
+dest=""
+custom_name=""
+url=""
+
+print_usage() {
+  cat <<EOF
+Usage: yt2mp3 [--to kirtans|desktop] [--name "Custom Name"] <YouTube URL>
+
+Options:
+  --to kirtans|desktop   Download into one of two preset folders
+  --name "Custom Name"   Save as a specific filename (".mp3" auto-appended)
+
+If --to is not provided, the current working directory is used.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --to)
+      [[ $# -lt 2 ]] && { echo "Error: --to requires an argument"; print_usage; exit 1; }
+      case "$2" in
+        folder1) dest="$FOLDER1_DIR" ;;
+        desktop) dest="$DESKTOP_DIR" ;;
+        *) echo "Error: --to must be 'kirtans' or 'desktop'"; exit 1 ;;
+      esac
+      shift 2
+      ;;
+    --name)
+      [[ $# -lt 2 ]] && { echo "Error: --name requires an argument"; print_usage; exit 1; }
+      custom_name="$2"
+      shift 2
+      ;;
+    -h|--help)
+      print_usage; exit 0
+      ;;
+    -*)
+      echo "Unknown option: $1"
+      print_usage; exit 1
+      ;;
+    *)
+      # First non-flag token is the URL
+      if [[ -z "${url:-}" ]]; then
+        url="$1"
+        shift
+      else
+        echo "Unexpected argument: $1"
+        print_usage; exit 1
+      fi
+      ;;
+  esac
+done
+
+if [[ -z "${url:-}" ]]; then
+  echo "Error: You must provide a YouTube URL."
+  print_usage
+  exit 1
+fi
+
+if [[ -z "${dest:-}" ]]; then
+  dest="$PWD"   # default to current directory
+fi
+
+mkdir -p "$dest"
+
+sanitize() {
+  printf "%s" "$1" | tr '/\\:*?"<>|' '_'
+}
+
+out_template=""
+if [[ -n "$custom_name" ]]; then
+  base="$(sanitize "$custom_name")"
+  base="${base%.mp3}"
+  out_template="$dest/${base}.%(ext)s"
+else
+  out_template="$dest/%(title)s.%(ext)s"
+fi
+
+yt-dlp \
+  --extract-audio \
+  --audio-format mp3 \
+  --audio-quality 0 \
+  -o "$out_template" \
+  "$url"
