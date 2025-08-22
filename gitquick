@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Stages all changes, commits them, and pushes to upstream.
+# Usage:
+#   gitquick -m "message"
+#   gitquick -m "msg" --pull-first
+
+
+set -euo pipefail
+
+err() { printf "gitquick: %s\n" "$*" >&2; }
+info() { printf "gitquick: %s\n" "$*"; }
+
+require_git_repo() {
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    err "Not inside a git repository."
+    exit 1
+  fi
+}
+
+MESSAGE=""
+PULL_FIRST=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -m|--message) MESSAGE="${2:-}"; shift 2 ;;
+    --pull-first) PULL_FIRST=true; shift ;;
+    -h|--help)
+      sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *)
+      err "Unknown option: $1"
+      sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+      exit 1
+      ;;
+  esac
+done
+
+require_git_repo
+
+if $PULL_FIRST; then
+  info "Pulling latest (rebase)…"
+  git pull --rebase
+fi
+
+info "Staging all changes…"
+git add -A
+
+if git diff --cached --quiet; then
+  info "No staged changes. Nothing to commit."
+  exit 0
+fi
+
+if [[ -z "$MESSAGE" ]]; then
+  MESSAGE="chore: quick commit $(date '+%Y-%m-%d %H:%M:%S')"
+fi
+
+info "Committing…"
+git commit -m "$MESSAGE"
+
+info "Pushing to upstream…"
+git push
+
+info "Done."
